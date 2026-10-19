@@ -196,7 +196,7 @@ const AIInsightsCard = () => {
                                 <span className="text-xs text-muted-foreground">Last Update</span>
                             </div>
                             <p className="text-xs font-semibold">
-                                {commits?.[0]?.commitDate 
+                                {commits && commits.length > 0 
                                     ? new Date(commits[0].commitDate).toLocaleDateString(undefined, { 
                                         month: 'short', 
                                         day: 'numeric' 

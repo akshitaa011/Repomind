@@ -37,12 +37,7 @@ export const projectRouter = createTRPCRouter({
             const currentCredit = user.credits || 0;
             
             // Check credits needed
-            let fileCount = 1;
-            try {
-                fileCount = await checkCredits(repoUrl, gitHubToken);
-            } catch (err: any) {
-                console.warn("Could not calculate exact file count, using fallback 1:", err?.message);
-            }
+            const fileCount = await checkCredits(repoUrl, gitHubToken);
             
             if (fileCount > currentCredit) {
                 throw new TRPCError({
@@ -56,7 +51,7 @@ export const projectRouter = createTRPCRouter({
                 data: {
                     name,
                     repoUrl,
-                    gitHubToken: gitHubToken?.trim() || null,
+                    gitHubToken,
                     userToProjects:{
                         create:{
                             userId: ctx.user.userId!,
@@ -282,53 +277,45 @@ getQuestions: protectedProcedure.input(z.object({
     }),
 
     checkCredits: protectedProcedure
-      .input(
-        z.object({
-          githubUrl: z.string(),
-          githubToken: z.string().optional(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        let fileCount = 1;
-        try {
-          fileCount = await checkCredits(input.githubUrl, input.githubToken);
-        } catch (err: any) {
-          console.error("Error fetching repo files:", err?.message || err);
+  .input(
+    z.object({
+      githubUrl: z.string(),
+      githubToken: z.string().optional(), // user token is optional
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    // Use user-provided token first, fallback to server token
+    const token = input.githubToken || process.env.GITHUB_ACCESS_TOKEN ;
+    if (!token) {
+      throw new Error("No GitHub token provided or configured.");
+    }
 
-          if (err?.message?.includes("401") || err?.response?.status === 401) {
-            throw new TRPCError({
-              code: "UNAUTHORIZED",
-              message: "Invalid GitHub token. Please check credentials or leave blank for public repositories.",
-            });
-          }
-          if (err?.message?.includes("404") || err?.response?.status === 404) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Repository not found. Please double-check the GitHub URL.",
-            });
-          }
-          if (err?.response?.status === 403 || err?.message?.includes("rate limit")) {
-            throw new TRPCError({
-              code: "TOO_MANY_REQUESTS",
-              message: "GitHub API rate limit exceeded. Provide a personal access token for higher limits.",
-            });
-          }
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: err?.message || "Unable to fetch repository files.",
-          });
-        }
+    let fileCount = 0;
+    try {
+      fileCount = await checkCredits(input.githubUrl, token);
+    } catch (err: any) {
+      console.error("Error fetching repo files:", err?.response?.data || err);
 
-        const userCredits = await ctx.db.user.findUnique({
-          where: { id: ctx.user.userId! },
-          select: { credits: true },
-        });
+      // Handle GitHub API errors gracefully
+      if (err?.response?.status === 401) {
+        throw new Error("Invalid GitHub token (401 Bad credentials).");
+      }
+      if (err?.response?.status === 403) {
+        throw new Error("GitHub API rate limit exceeded. Please try again later.");
+      }
+      throw new Error("Unable to fetch repository files.");
+    }
 
-        return {
-          fileCount,
-          credits: userCredits?.credits ?? 500,
-        };
-      }),
+    const userCredits = await ctx.db.user.findUnique({
+      where: { id: ctx.user.userId! },
+      select: { credits: true },
+    });
+
+    return {
+      fileCount,
+      credits: userCredits?.credits || 0,
+    };
+  }),
 
 
     getPurchaseHistory: protectedProcedure.query(async ({ ctx }) => {
@@ -336,21 +323,6 @@ getQuestions: protectedProcedure.input(z.object({
             where: { userId: ctx.user.userId! },
             orderBy: { createdAt: 'desc' },
         });
-    }),
-
-    getProjectStats: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ ctx, input }) => {
-        const [embeddingsCount, commitsCount, questionsCount] = await Promise.all([
-            ctx.db.sourceCodeEmbedding.count({ where: { projectId: input.projectId } }),
-            ctx.db.commit.count({ where: { projectId: input.projectId } }),
-            ctx.db.question.count({ where: { projectId: input.projectId } }),
-        ]);
-        return {
-            embeddingsCount,
-            commitsCount,
-            questionsCount,
-        };
     }),
 
 });

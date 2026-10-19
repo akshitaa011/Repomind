@@ -1,53 +1,32 @@
 import { PrismaClient } from "@prisma/client";
-import fs from "fs";
-import path from "path";
-import dotenv from "dotenv";
 
-let resolvedDatabaseUrl: string | undefined;
+import { env } from "~/env";
 
-// Robust search for .env file to ensure the working pooler URL is always used
-const possiblePaths = [
-  "C:/Users/HP/.gemini/antigravity/scratch/Repomind/.env",
-  path.resolve(process.cwd(), ".env"),
-];
+let prismaInstance: any;
 
-for (const p of possiblePaths) {
-  try {
-    if (fs.existsSync(p)) {
-      const parsed = dotenv.parse(fs.readFileSync(p));
-      if (parsed.DATABASE_URL) {
-        resolvedDatabaseUrl = parsed.DATABASE_URL;
-        process.env.DATABASE_URL = parsed.DATABASE_URL;
-        break;
-      }
+try {
+  const createPrismaClient = () =>
+    new PrismaClient({
+      log:
+        env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    });
+
+  const globalForPrisma = globalThis as unknown as {
+    prisma: ReturnType<typeof createPrismaClient> | undefined;
+  };
+
+  prismaInstance = globalForPrisma.prisma ?? createPrismaClient();
+  if (env.NODE_ENV !== "production") globalForPrisma.prisma = prismaInstance;
+} catch {
+  // Graceful fallback for frontend-only mode when Prisma is not connected
+  prismaInstance = new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === '$queryRaw') return async () => [];
+      return new Proxy({}, {
+        get: () => async () => null
+      });
     }
-  } catch {}
-}
-
-if (!resolvedDatabaseUrl) {
-  resolvedDatabaseUrl = process.env.DATABASE_URL;
-}
-
-const createPrismaClient = () =>
-  new PrismaClient({
-    datasourceUrl: resolvedDatabaseUrl,
-    log:
-      process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-  prismaUrl: string | undefined;
-};
-
-// Recreate client if url does not match or client is not initialized
-let client = globalForPrisma.prisma;
-if (!client || globalForPrisma.prismaUrl !== resolvedDatabaseUrl) {
-  client = createPrismaClient();
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-    globalForPrisma.prismaUrl = resolvedDatabaseUrl;
-  }
 }
 
-export const db = client as PrismaClient;
+export const db = prismaInstance;

@@ -876,19 +876,12 @@ export default function ModernCodeGenPage(): JSX.Element {
                     {files.map((file) => {
                       const isActive = activeFile?.id === file.id
                       return (
-                        <div
+                        <button
                           key={file.id}
-                          role="button"
-                          tabIndex={0}
+                          type="button"
                           onClick={() => setActiveFileId(file.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault()
-                              setActiveFileId(file.id)
-                            }
-                          }}
                           className={cn(
-                            "w-full px-3 py-2 text-left flex items-center justify-between gap-2 text-xs hover:bg-muted/80 transition-colors cursor-pointer select-none",
+                            "w-full px-3 py-2 text-left flex items-center justify-between gap-2 text-xs hover:bg-muted/80 transition-colors",
                             isActive && "bg-primary/10 text-primary"
                           )}
                         >
@@ -906,7 +899,7 @@ export default function ModernCodeGenPage(): JSX.Element {
                           >
                             <Edit3 className="w-3 h-3" />
                           </button>
-                        </div>
+                        </button>
                       )
                     })}
 

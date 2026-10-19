@@ -1,6 +1,6 @@
 "use client"
 
-import { Bot, CreditCard, LayoutDashboard, Plus } from "lucide-react"
+import { Bot, Code, CreditCard, LayoutDashboard, Plus } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "~/components/ui/button"
@@ -21,6 +21,10 @@ export function AppSidebar(){
         title: "Ask & Explore",
         url: "/qa",
         icon: Bot
+    },{
+        title: "Code Studio",
+        url: "/code",
+        icon: Code
     },{
         title: "Usage & Billing",
         url: "/billing",

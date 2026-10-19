@@ -6,12 +6,12 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { auth } from "@clerk/nextjs/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "~/server/db";
-import { auth } from "~/lib/auth";
 
 /**
  * 1. CONTEXT
@@ -76,33 +76,22 @@ export const createTRPCRouter = t.router;
 
 /**
  * Middleware for timing procedure execution and adding an artificial delay in development.
+ *
+ * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
+ * network latency that would occur in production but not in local development.
  */
+
 const isAuthenticated = t.middleware(async ({ next, ctx }) => {
-  let session = null;
-  try {
-    session = await auth.api.getSession({
-      headers: ctx.headers,
-    });
-  } catch (err) {
-    // Graceful fallback for demo or when database is connecting
+  const user = await auth();
+
+  if (!user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "You must be logged in to access this resource" });
   }
-
-  const userId = session?.user?.id ?? "user_demo_repomind";
-  const user = session?.user ?? {
-    id: "user_demo_repomind",
-    name: "Demo User",
-    email: "demo@repomind.ai",
-  };
-
   return next({
-    ctx: {
+    ctx:{
       ...ctx,
-      user: {
-        ...user,
-        userId,
-      },
-      session: session?.session ?? null,
-    },
+      user
+    }
   });
 });
 
@@ -125,10 +114,11 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 
 /**
  * Public (unauthenticated) procedure
+ *
+ * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
+ * guarantee that a user querying is authorized, but you can still access user session data if they
+ * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
-/**
- * Protected procedure (authenticated with Better Auth)
- */
 export const protectedProcedure = t.procedure.use(isAuthenticated);

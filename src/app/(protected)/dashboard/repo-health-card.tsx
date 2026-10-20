@@ -10,11 +10,14 @@ import {
   TrendingUp,
   Calendar,
   Activity,
+  HelpCircle,
+  Info,
 } from 'lucide-react'
 import useProject from '~/hooks/use-project'
 import { api } from '~/trpc/react'
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
 import 'react-circular-progressbar/dist/styles.css'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip'
 
 const RepoHealthCard = () => {
   const { project, projectId } = useProject()
@@ -105,12 +108,38 @@ const RepoHealthCard = () => {
       <CardHeader className='pb-2'>
         <div className='flex items-center justify-between'>
           <div>
-            <CardTitle className='text-base font-semibold flex items-center gap-2'>
-              <div className='size-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center'>
-                <Activity className='size-4' />
-              </div>
-              Repository Vitals
-            </CardTitle>
+            <div className='flex items-center gap-1.5'>
+              <CardTitle className='text-base font-semibold flex items-center gap-2'>
+                <div className='size-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center'>
+                  <Activity className='size-4' />
+                </div>
+                Repository Vitals
+              </CardTitle>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type='button' className='text-muted-foreground/60 hover:text-foreground transition-colors cursor-help p-0.5' aria-label='About health score'>
+                      <HelpCircle className='size-3.5' />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side='top' className='max-w-xs p-3 text-xs space-y-1.5 bg-card/95 backdrop-blur border border-border shadow-lg text-foreground'>
+                    <p className='font-semibold flex items-center gap-1.5 text-primary'>
+                      <Info className='size-3.5' />
+                      Repository Health Score
+                    </p>
+                    <p className='text-muted-foreground leading-relaxed'>
+                      Measures codebase maintenance freshness and recent commit cadence from GitHub.
+                    </p>
+                    <div className='pt-1 text-[11px] space-y-1 border-t border-border/50 text-muted-foreground'>
+                      <p>• <strong>80–100% (Optimal)</strong>: Active weekly commits</p>
+                      <p>• <strong>60–79% (Healthy)</strong>: Regular maintenance</p>
+                      <p>• <strong>40–59% (Moderate)</strong>: Stable / completed code</p>
+                      <p>• <strong>&lt;40% (Stale)</strong>: Inactive for months</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <CardDescription className='text-xs mt-0.5'>
               {project.name} • Activity & Cadence
             </CardDescription>
@@ -156,18 +185,33 @@ const RepoHealthCard = () => {
           </div>
 
           {/* Health Gauge */}
-          <div className='size-24 shrink-0 flex items-center justify-center'>
-            <CircularProgressbar
-              value={healthScore}
-              text={`${healthScore}%`}
-              styles={buildStyles({
-                textSize: '22px',
-                pathColor: status.strokeColor,
-                textColor: status.strokeColor,
-                trailColor: 'rgba(150, 150, 150, 0.15)',
-              })}
-            />
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className='size-24 shrink-0 flex items-center justify-center cursor-help' title='Activity Breakdown'>
+                  <CircularProgressbar
+                    value={healthScore}
+                    text={`${healthScore}%`}
+                    styles={buildStyles({
+                      textSize: '22px',
+                      pathColor: status.strokeColor,
+                      textColor: status.strokeColor,
+                      trailColor: 'rgba(150, 150, 150, 0.15)',
+                    })}
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side='left' className='text-xs p-2.5 space-y-1 bg-card/95 backdrop-blur border border-border shadow-lg text-foreground max-w-[220px]'>
+                <p className='font-semibold text-primary'>{status.label} Activity ({healthScore}%)</p>
+                <p className='text-[11px] text-muted-foreground'>
+                  {recentCommits > 0 ? `+${recentCommits * 5}% from recent commits` : '0 commits in past 7 days'}
+                </p>
+                <p className='text-[11px] text-muted-foreground'>
+                  {daysSinceLastCommit > 30 ? '-20% dormant (>30 days)' : daysSinceLastCommit > 14 ? '-10% dormant (>14 days)' : 'Recently active'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Last Activity Footer */}

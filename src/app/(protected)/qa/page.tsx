@@ -13,6 +13,7 @@ import { RepoStructurePanel } from "./repo-structure-panel"
 import { ArchitectureModal } from "./architecture-modal"
 import { askQuestion } from "../dashboard/action"
 import CodeRefrence from "../dashboard/code-refrence"
+import { cn } from "~/lib/utils"
 
 import {
   Github,

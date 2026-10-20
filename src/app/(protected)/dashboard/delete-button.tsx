@@ -18,7 +18,8 @@ import { api } from '~/trpc/react'
 
 const DeleteButton = () => {
   const deleteProject = api.project.deleteProject.useMutation()
-  const { projectId, project } = useProject()
+  const utils = api.useUtils()
+  const { projectId, project, projects, setProjectId } = useProject()
   const refetch = useRefetch()
   const [open, setOpen] = useState(false)
 
@@ -28,13 +29,21 @@ const DeleteButton = () => {
     deleteProject.mutate(
       { projectId },
       {
-        onSuccess: () => {
-          toast.success("Project deleted successfully")
+        onSuccess: async () => {
+          toast.success("Project deleted successfully from database")
           setOpen(false)
-          refetch()
+          
+          // Switch active workspace to next remaining project, or clear if none
+          const remaining = (projects || []).filter((p) => p.id !== projectId)
+          setProjectId(remaining[0]?.id || '')
+          
+          // Invalidate project caches across tRPC and React Query
+          await utils.project.getProjects.invalidate()
+          await utils.project.getProjectStats.invalidate()
+          await refetch()
         },
-        onError: () => {
-          toast.error("Failed to delete project")
+        onError: (err) => {
+          toast.error(err.message || "Failed to delete project")
         },
       }
     )
@@ -52,7 +61,7 @@ const DeleteButton = () => {
               Delete Project
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{project?.name || "this project"}</strong>? This will remove all indexed vector embeddings, commits, and Q&A history. This action cannot be undone.
+              Are you sure you want to delete <strong>{project?.name || "this project"}</strong>? This will permanently remove all indexed files, vector embeddings, commits, and Q&A history from the database. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className='gap-2 sm:gap-0 mt-2'>

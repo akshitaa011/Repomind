@@ -201,11 +201,19 @@ getQuestions: protectedProcedure.input(z.object({
     }
 }),
 
-    deleteProject: protectedProcedure.input(z.object({
+        deleteProject: protectedProcedure.input(z.object({
         projectId: z.string(),
     })).mutation(async ({ctx, input}) => {
-        return await ctx.db.project.delete({
-            where: {id: input.projectId},
+        const { projectId } = input;
+        
+        // Execute atomic cascade deletion in a transaction to permanently remove all linked records from PostgreSQL
+        return await ctx.db.$transaction(async (tx) => {
+            await tx.projectFile.deleteMany({ where: { projectId } });
+            await tx.sourceCodeEmbedding.deleteMany({ where: { projectId } });
+            await tx.commit.deleteMany({ where: { projectId } });
+            await tx.question.deleteMany({ where: { projectId } });
+            await tx.userToProject.deleteMany({ where: { projectId } });
+            return await tx.project.delete({ where: { id: projectId } });
         });
     }),
 

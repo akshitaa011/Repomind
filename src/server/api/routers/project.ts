@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { pollCommits } from "~/lib/github";
-import { checkCredits, indexGithubRepo } from "~/lib/github-loader";
+import { checkCredits, storeGithubRepoFiles } from "~/lib/github-loader";
 import { TRPCError } from "@trpc/server";
 
 export const projectRouter = createTRPCRouter({
@@ -65,17 +65,22 @@ export const projectRouter = createTRPCRouter({
                 },
             });
 
-            // Deduct credits immediately
+            // Store the repo's filtered files whole. If this fails, remove the empty project.
+            try {
+                await storeGithubRepoFiles(project.id, repoUrl, gitHubToken);
+            } catch (storeError) {
+                await ctx.db.project.delete({ where: { id: project.id } });
+                throw storeError;
+            }
+
+            // Deduct credits only after the files are stored
             await ctx.db.user.update({
                 where:{id: ctx.user.userId!}, 
                 data:{credits: { decrement: fileCount}}
             });
 
-            // Start background tasks (don't await these)
-            Promise.all([
-                pollCommits(project.id),
-                indexGithubRepo(project.id, repoUrl, gitHubToken)
-            ]).catch(error => {
+            // Start background task (don't await): commit history
+            pollCommits(project.id).catch(error => {
                 console.error('Background processing error:', error);
             });
 

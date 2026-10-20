@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
-import { ArrowLeft, Mail, Loader2, KeyRound, AlertCircle, MailCheck, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Mail, Loader2, KeyRound, AlertCircle, MailCheck, ExternalLink, Copy, Check, Info } from 'lucide-react'
 import { toast } from 'sonner'
+import { BrainLogo } from '~/components/brain-logo'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -14,6 +15,8 @@ export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [devResetUrl, setDevResetUrl] = useState('')
+  const [deliveryMethod, setDeliveryMethod] = useState<'smtp' | 'resend' | 'console' | ''>('')
+  const [copiedLink, setCopiedLink] = useState(false)
 
   const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +30,6 @@ export default function ForgotPasswordPage() {
 
     setLoading(true)
     try {
-      // Send request to verify email in DB & dispatch reset email
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,9 +52,16 @@ export default function ForgotPasswordPage() {
         setDevResetUrl(data.resetUrl)
       }
 
-      // Link sent successfully to user's email
+      if (data.method) {
+        setDeliveryMethod(data.method)
+      }
+
       setSubmitted(true)
-      toast.success("Password reset email sent! Please check your inbox.")
+      if (data.method === "smtp" || data.method === "resend") {
+        toast.success("Password reset email sent to your inbox!")
+      } else {
+        toast.success("Password reset link generated!")
+      }
     } catch (err: any) {
       console.error("Verification error:", err)
       const errText = "Unable to process request. Please check your connection and try again."
@@ -63,18 +72,29 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  const handleCopyLink = () => {
+    if (devResetUrl) {
+      navigator.clipboard.writeText(devResetUrl)
+      setCopiedLink(true)
+      toast.success("Reset link copied to clipboard!")
+      setTimeout(() => setCopiedLink(false), 2000)
+    }
+  }
+
+  const isLiveDelivery = deliveryMethod === "smtp" || deliveryMethod === "resend"
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-muted/20">
       <Card className="w-full max-w-md shadow-xl border-border">
         {!submitted ? (
           <>
             <CardHeader className="text-center space-y-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <KeyRound className="h-6 w-6 text-primary" />
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-inner">
+                <BrainLogo size={36} glow={true} />
               </div>
               <CardTitle className="text-2xl font-bold tracking-tight">Forgot Password</CardTitle>
               <CardDescription>
-                Enter your registered email address. We&apos;ll verify your account and email you a secure link to reset your password.
+                Enter your registered email address. We&apos;ll verify your account and provide a secure link to reset your password.
               </CardDescription>
             </CardHeader>
 
@@ -112,8 +132,8 @@ export default function ForgotPasswordPage() {
                 <Button type="submit" className="w-full font-medium" disabled={loading}>
                   {loading ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Verifying account & sending link...</span>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Verifying account...</span>
                     </>
                   ) : (
                     "Send Reset Link"
@@ -138,35 +158,65 @@ export default function ForgotPasswordPage() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <MailCheck className="h-8 w-8" />
               </div>
-              <CardTitle className="text-2xl font-bold tracking-tight">Check Your Email</CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-tight">
+                {isLiveDelivery ? "Check Your Email" : "Reset Link Ready"}
+              </CardTitle>
               <CardDescription>
-                We have sent a password reset link to <strong className="text-foreground">{email}</strong>.
+                Password reset link generated for <strong className="text-foreground">{email}</strong>.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4 text-center">
-              <div className="rounded-lg bg-muted p-4 text-xs text-muted-foreground leading-relaxed text-left space-y-2">
-                <p>
-                  Please open your email inbox, find the message from RepoMind, and click the secure reset link.
-                </p>
-                <p className="text-[11px] text-muted-foreground/80">
-                  Didn&apos;t receive it? Please check your spam folder. The link will expire in 1 hour.
-                </p>
-              </div>
+              {isLiveDelivery ? (
+                <div className="rounded-lg bg-muted p-4 text-xs text-muted-foreground leading-relaxed text-left space-y-2">
+                  <p>
+                    A password reset email has been dispatched via SMTP. Please open your email inbox, find the message from RepoMind, and click the link.
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/80">
+                    Didn&apos;t receive it? Please check your spam folder. The link will expire in 1 hour.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3.5 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
+                    <Info className="size-4 shrink-0" />
+                    <span>Local Development Mode</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    No SMTP credentials (e.g. Gmail App Password) are set in <code className="bg-background/80 px-1 py-0.5 rounded font-mono text-[11px]">.env</code>, so no physical email was sent to your Gmail inbox.
+                  </p>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Your secure reset link was generated directly so you can reset your password immediately:
+                  </p>
+                </div>
+              )}
 
               {devResetUrl && (
-                <div className="rounded-lg bg-primary/10 border border-primary/20 p-3.5 text-left space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                    <KeyRound className="size-3.5" />
-                    <span>Direct Password Reset Link:</span>
+                <div className="rounded-xl bg-primary/10 border border-primary/20 p-4 text-left space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                      <KeyRound className="size-3.5" />
+                      <span>Direct Password Reset Link:</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyLink}
+                      className="h-6 px-2 text-[11px] gap-1 text-primary hover:bg-primary/20"
+                    >
+                      {copiedLink ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                      <span>{copiedLink ? "Copied" : "Copy"}</span>
+                    </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground break-all font-mono select-all bg-background/60 p-2 rounded border border-border/50">
+
+                  <p className="text-[11px] text-muted-foreground break-all font-mono select-all bg-background/80 p-2.5 rounded-lg border border-border/60">
                     {devResetUrl}
                   </p>
-                  <Link href={devResetUrl} className="inline-block pt-1">
-                    <Button size="sm" className="h-8 text-xs font-medium gap-1.5">
-                      <span>Open Reset Password Page</span>
-                      <ExternalLink className="size-3" />
+
+                  <Link href={devResetUrl} className="block w-full">
+                    <Button className="w-full text-xs font-semibold gap-1.5 shadow-sm">
+                      <span>Open Reset Password Page Now</span>
+                      <ExternalLink className="size-3.5" />
                     </Button>
                   </Link>
                 </div>

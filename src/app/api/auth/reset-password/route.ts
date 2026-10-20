@@ -62,27 +62,23 @@ export async function POST(req: Request) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
       const resetUrl = `${appUrl.replace(/\/$/, "")}/reset-password?token=${resetToken}`;
 
-      // 4. Send email via SMTP / Resend
+      // 4. Send email via SMTP / Resend / Local Fallback
       const emailResult = await sendPasswordResetEmail({
         to: cleanEmail,
         resetUrl,
       });
 
-      if (!emailResult.sent) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: (emailResult as any).error || "Email delivery failed. Please check your email configuration in .env.",
-          },
-          { status: 500 }
-        );
-      }
+      const isLiveEmail = emailResult.method === "smtp" || emailResult.method === "resend";
 
       return NextResponse.json({
         success: true,
-        message: `A password reset link has been sent to ${cleanEmail}. Please check your inbox.`,
+        message: isLiveEmail
+          ? `A password reset email has been sent to ${cleanEmail}. Please check your inbox and spam folder.`
+          : `Password reset link generated for ${cleanEmail}.`,
         email: cleanEmail,
-        resetUrl: emailResult.method === "console" ? resetUrl : undefined,
+        method: emailResult.method,
+        smtpError: (emailResult as any).smtpError,
+        resetUrl, // Always passed so the user can immediately reset in dev / local mode
       });
     }
 

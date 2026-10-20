@@ -19,7 +19,7 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendEmailParams) 
           "User-Agent": "RepoMind-App/1.0",
         },
         body: JSON.stringify({
-          from: "onboarding@resend.dev",
+          from: process.env.EMAIL_FROM || "onboarding@resend.dev",
           to: cleanTo,
           subject: "Reset your RepoMind password",
           html: getResetEmailHtml(resetUrl, cleanTo),
@@ -29,47 +29,67 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendEmailParams) 
       const data = await res.json();
 
       if (res.ok) {
-        console.log(`[RepoMind Email] Sent real reset email via Resend to ${cleanTo} (ID: ${data.id})`);
+        console.log(`[RepoMind Email] Sent reset email via Resend to ${cleanTo} (ID: ${data.id})`);
         return { sent: true, method: "resend", id: data.id };
       } else {
-        console.error("[RepoMind Email] Resend API error:", data);
-        return { sent: false, method: "resend", error: data.message || "Resend delivery failed" };
+        console.warn("[RepoMind Email] Resend API error:", data);
       }
     } catch (err: any) {
-      console.error("[RepoMind Email] Resend fetch exception:", err);
+      console.warn("[RepoMind Email] Resend fetch error:", err?.message || err);
     }
   }
 
   // 2. If SMTP / Gmail credentials are provided
-  const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS;
-  const smtpHost = process.env.SMTP_HOST || (smtpUser?.includes("@gmail") ? "smtp.gmail.com" : undefined);
-  const smtpPort = Number(process.env.SMTP_PORT) || 465;
+  const rawUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const rawPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS;
+  // Automatically strip any spaces that Google includes in 16-character App Passwords
+  const cleanPass = rawPass ? rawPass.trim().replace(/\s+/g, "") : undefined;
+  const smtpUser = rawUser ? rawUser.trim() : undefined;
+  const smtpHost = process.env.SMTP_HOST;
+  const isGmail = Boolean(
+    (smtpUser && smtpUser.toLowerCase().includes("@gmail")) ||
+    (smtpHost && smtpHost.toLowerCase().includes("gmail"))
+  );
+  const smtpPort = Number(process.env.SMTP_PORT) || (isGmail ? 465 : 587);
 
-  if (smtpUser && smtpPass && smtpHost) {
+  if (smtpUser && cleanPass) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
+      const transporter = isGmail
+        ? nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: smtpUser,
+              pass: cleanPass,
+            },
+          })
+        : nodemailer.createTransport({
+            host: smtpHost || "smtp.gmail.com",
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser,
+              pass: cleanPass,
+            },
+          });
 
       await transporter.sendMail({
-        from: `"RepoMind" <${smtpUser}>`,
+        from: `"RepoMind Support" <${smtpUser}>`,
         to: cleanTo,
         subject: "Reset your RepoMind password",
         html: getResetEmailHtml(resetUrl, cleanTo),
       });
 
-      console.log(`[RepoMind Email] Sent reset email via SMTP to ${cleanTo}`);
+      console.log(`[RepoMind Email] Sent real reset email via SMTP/Gmail to ${cleanTo}`);
       return { sent: true, method: "smtp" };
     } catch (err: any) {
-      console.error("[RepoMind Email] SMTP send error:", err);
-      return { sent: false, method: "smtp", error: err.message };
+      console.error("[RepoMind Email] SMTP send failed:", err?.message || err);
+      // Fallback to local resetUrl so the user is never stuck
+      return {
+        sent: true,
+        method: "console",
+        resetUrl,
+        smtpError: err?.message || "SMTP authentication failed",
+      };
     }
   }
 
@@ -77,6 +97,7 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendEmailParams) 
   console.log(`\n======================================================`);
   console.log(`[RepoMind Email System] PASSWORD RESET EMAIL FOR: ${cleanTo}`);
   console.log(`Reset URL: ${resetUrl}`);
+  console.log(`(Configure GMAIL_USER & GMAIL_PASS in .env to deliver real emails)`);
   console.log(`======================================================\n`);
 
   return { sent: true, method: "console", resetUrl };

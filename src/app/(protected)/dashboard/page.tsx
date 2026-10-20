@@ -26,6 +26,7 @@ import DeleteButton from './delete-button'
 import InviteButton from './invite-button'
 import TeamMembers from './team-members'
 import RepoHealthCard from './repo-health-card'
+import { BrainLogo } from '~/components/brain-logo'
 
 const DashboardPage = () => {
   const { project, projects, projectId, setProjectId, isLoading: isProjectsLoading } = useProject()
@@ -198,6 +199,12 @@ const DashboardPage = () => {
 
               {/* Active Repository Actions */}
               <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+                <Link href="/qa">
+                  <Button size="sm" className="h-8 text-xs gap-1.5 font-medium shadow-xs">
+                    <BrainLogo size={16} glow={false} />
+                    <span>Ask & Explore</span>
+                  </Button>
+                </Link>
                 <Button
                   size="sm"
                   variant="outline"

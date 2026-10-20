@@ -57,7 +57,7 @@ const CreateForm = () => {
 
         await new Promise((resolve) => setTimeout(resolve, 300))
         await refetch()
-        router.push('/dashboard')
+        router.push('/qa')
       } catch (error: any) {
         console.error("Error creating project:", error)
         toast.error(error?.message || "Failed to create project")

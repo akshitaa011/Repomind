@@ -9,7 +9,7 @@ import { ThemeProvider } from "~/app/components/theme-provider";
 export const metadata: Metadata = {
   title: "RepoMind",
   description: "AI-Powered Developer Collaboration & Repository Intelligence Platform",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: [{ rel: "icon", url: "/brain-logo.svg" }, { rel: "shortcut icon", url: "/brain-logo.svg" }],
 };
 
 export default function RootLayout({

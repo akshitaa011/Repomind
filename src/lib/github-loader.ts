@@ -377,6 +377,14 @@ export const indexGithubRepo = async (
       return { successCount: 0, errorCount: 0 };
     }
 
+    // 1.1 Save raw files for repository architecture tree and file viewer
+    try {
+      await saveProjectFiles(projectId, docs);
+      console.log(`Saved ${docs.length} files in db.projectFile for project ${projectId}`);
+    } catch (saveErr) {
+      console.warn("Could not save files to db.projectFile:", saveErr);
+    }
+
     // 2. Generate embeddings
     const allEmbeddings = await generateEmbeddings(docs);
     console.log(`Successfully generated ${allEmbeddings.length} embeddings`);

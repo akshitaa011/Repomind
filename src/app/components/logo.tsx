@@ -1,10 +1,8 @@
-import Image from "next/image"
+"use client"
 
-export function Logo() {
-  return (
-    <div className="relative h-8 w-8">
-      <Image src="/favicon.ico" alt="RepoMind Logo" fill className="object-contain" priority />
-    </div>
-  )
+import React from "react"
+import { BrainLogo } from "~/components/brain-logo"
+
+export function Logo({ size = 32 }: { size?: number }) {
+  return <BrainLogo size={size} glow={true} />
 }
-

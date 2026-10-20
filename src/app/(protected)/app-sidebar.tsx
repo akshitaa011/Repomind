@@ -1,12 +1,13 @@
 "use client"
 
-import { Bot, CreditCard, LayoutDashboard, Plus } from "lucide-react"
+import { Bot, CreditCard, LayoutDashboard, Plus, GitCommit, BookOpen, BrainCircuit } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "~/components/ui/button"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "~/components/ui/sidebar"
 import { cn } from "~/lib/utils"
 import useProject from "~/hooks/use-project"
+import { BrainLogo } from "~/components/brain-logo"
 
 export function AppSidebar(){
     const router = useRouter();
@@ -20,7 +21,15 @@ export function AppSidebar(){
     },{
         title: "Ask & Explore",
         url: "/qa",
-        icon: Bot
+        icon: BrainCircuit
+    },{
+        title: "Commit Summaries",
+        url: "/commit-summaries",
+        icon: GitCommit
+    },{
+        title: "Knowledge Base",
+        url: "/knowledge-base",
+        icon: BookOpen
     },{
         title: "Usage & Billing",
         url: "/billing",
@@ -31,9 +40,18 @@ export function AppSidebar(){
     return (
         <Sidebar collapsible="icon" variant="floating" >
             <SidebarHeader>
-                <div className="flex items-center gap-2">
-                    <img src={'/favicon.ico'} alt="logo" className="size-8" />
-                    {open && <h1 className="text-xl font-bold text-primary/80">RepoMind</h1>}
+                <div className="flex items-center gap-2.5 px-1 py-1">
+                    <BrainLogo size={30} glow={true} />
+                    {open && (
+                        <div className="flex flex-col">
+                            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 dark:from-blue-400 dark:via-sky-300 dark:to-indigo-300 bg-clip-text text-transparent">
+                                RepoMind
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-medium -mt-1 tracking-wide">
+                                Code Intelligence
+                            </span>
+                        </div>
+                    )}
                 </div>
             </SidebarHeader>
             <SidebarContent>
@@ -49,7 +67,7 @@ export function AppSidebar(){
                                             <Link href={item.url} className={cn({
                                                 '!bg-primary !text-white': pathname === item.url
                                             })}>
-                                                <item.icon/>
+                                                <item.icon className="size-4"/>
                                                 <span>{item.title}</span>
                                             </Link>
                                         </SidebarMenuButton>
@@ -97,8 +115,8 @@ export function AppSidebar(){
                             <div className="h-2"></div>
                            { open && <SidebarMenuItem>
                                 <Link href={'/create'}>
-                                    <Button size={"sm"} variant="outline" className="w-fit px-2">
-                                        <Plus/>
+                                    <Button size={"sm"} variant="outline" className="w-fit px-2 gap-1.5">
+                                        <Plus className="size-4"/>
                                        Create Project
                                     </Button>
                                 </Link>

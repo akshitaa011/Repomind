@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card"
 import { Button } from "~/components/ui/button"
 import { Textarea } from "~/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog"
-import Image from "next/image"
 import { readStreamableValue } from "ai/rsc"
 import MarkdownPreview from "@uiw/react-markdown-preview"
 import { useTheme } from "next-themes"
@@ -15,6 +14,7 @@ import { toast } from "sonner"
 import useRefetch from "~/hooks/use-refetch"
 import { askQuestion } from "./action"
 import CodeRefrence from "./code-refrence"
+import { BrainLogo } from "~/components/brain-logo"
 import {
   Sparkles,
   BookmarkCheck,
@@ -99,23 +99,26 @@ const AskQuestionCard = () => {
     }
   }
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await handleAsk()
+    handleAsk()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault()
-      if (!loading && question.trim()) {
-        void handleAsk()
-      }
+      handleAsk()
     }
   }
 
   const handleSaveAnswer = () => {
-    if (!project?.id || !question || !answer) {
-      toast.error("Cannot save incomplete answer")
+    if (!project?.id) {
+      toast.error("Project ID is missing")
+      return
+    }
+
+    if (!answer || !question) {
+      toast.error("No question or answer to save")
       return
     }
 
@@ -128,12 +131,11 @@ const AskQuestionCard = () => {
       },
       {
         onSuccess: () => {
-          toast.success("Answer saved to Q&A history")
+          toast.success("Saved to Knowledge Base!")
           refetch()
         },
-        onError: (error) => {
-          console.error("Save error:", error)
-          toast.error("Failed to save answer")
+        onError: (err) => {
+          toast.error(err.message || "Failed to save answer")
         },
       }
     )
@@ -154,7 +156,7 @@ const AskQuestionCard = () => {
           <DialogHeader className="border-b pb-4 shrink-0">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <DialogTitle className="flex items-center gap-2.5">
-                <Image src="/favicon.ico" alt="logo" width={28} height={28} />
+                <BrainLogo size={28} glow={true} />
                 <span className="text-xl font-bold tracking-tight">RepoMind Intelligence</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
                   Gemini 2.0 Flash RAG

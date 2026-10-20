@@ -9,6 +9,7 @@ import { Input } from '~/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
 import { Lock, Mail, User, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { BrainLogo } from '~/components/brain-logo'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -71,8 +72,8 @@ export default function SignUpPage() {
     <div className="flex min-h-screen items-center justify-center p-4 bg-muted/20">
       <Card className="w-full max-w-md shadow-xl border-border">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <img src="/favicon.ico" alt="RepoMind" className="h-7 w-7" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-inner">
+            <BrainLogo size={36} glow={true} />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">Create your RepoMind account</CardTitle>
           <CardDescription>

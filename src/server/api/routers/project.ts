@@ -353,4 +353,202 @@ getQuestions: protectedProcedure.input(z.object({
         };
     }),
 
+    // --- Architecture & Repository Structure ---
+    getProjectStructure: protectedProcedure.input(z.object({
+        projectId: z.string(),
+    })).query(async ({ ctx, input }) => {
+        // 1. Fetch paths from projectFile
+        const files = await ctx.db.projectFile.findMany({
+            where: { projectId: input.projectId },
+            select: { path: true },
+            orderBy: { path: 'asc' },
+        });
+
+        let filePaths = files.map((f: { path: string }) => f.path);
+
+        // 2. Fallback to SourceCodeEmbedding if projectFile is not yet populated
+        if (filePaths.length === 0) {
+            const embeddings = await ctx.db.sourceCodeEmbedding.findMany({
+                where: { projectId: input.projectId },
+                select: { fileName: true },
+                distinct: ['fileName'],
+                orderBy: { fileName: 'asc' },
+            });
+            filePaths = embeddings.map(e => e.fileName);
+        }
+
+        // Clean paths
+        filePaths = filePaths.map((p: string) => p.replace(/^\.?\/+/, ''));
+
+        // Build hierarchical tree
+        interface FileTreeNode {
+            id: string;
+            name: string;
+            path: string;
+            type: "file" | "folder";
+            children?: FileTreeNode[];
+            extension?: string;
+        }
+
+        const root: FileTreeNode[] = [];
+
+        for (const rawPath of filePaths) {
+            const parts = rawPath.split('/').filter(Boolean);
+            let currentLevel = root;
+            let accumulatedPath = '';
+
+            parts.forEach((part: string, index: number) => {
+                accumulatedPath = accumulatedPath ? `${accumulatedPath}/${part}` : part;
+                const isFile = index === parts.length - 1;
+
+                let existingNode = currentLevel.find(node => node.name === part);
+
+                if (!existingNode) {
+                    const ext = isFile ? part.split('.').pop() : undefined;
+                    existingNode = {
+                        id: accumulatedPath,
+                        name: part,
+                        path: accumulatedPath,
+                        type: isFile ? "file" : "folder",
+                        extension: ext,
+                        children: isFile ? undefined : [],
+                    };
+                    currentLevel.push(existingNode);
+                }
+
+                if (!isFile && existingNode.children) {
+                    currentLevel = existingNode.children;
+                }
+            });
+        }
+
+        function sortNodes(nodes: FileTreeNode[]) {
+            nodes.sort((a, b) => {
+                if (a.type !== b.type) {
+                    return a.type === "folder" ? -1 : 1;
+                }
+                return a.name.localeCompare(b.name);
+            });
+            for (const node of nodes) {
+                if (node.children) {
+                    sortNodes(node.children);
+                }
+            }
+        }
+
+        sortNodes(root);
+
+        // Calculate extensions distribution
+        const extensionsMap: Record<string, number> = {};
+        for (const p of filePaths) {
+            const ext = p.split('.').pop()?.toLowerCase();
+            if (ext && ext.length < 8) {
+                extensionsMap[ext] = (extensionsMap[ext] || 0) + 1;
+            }
+        }
+
+        return {
+            totalFiles: filePaths.length,
+            fileTree: root,
+            filePaths,
+            extensions: extensionsMap,
+        };
+    }),
+
+    getFileContent: protectedProcedure.input(z.object({
+        projectId: z.string(),
+        path: z.string(),
+    })).query(async ({ ctx, input }) => {
+        // 1. Check projectFile
+        const file = await ctx.db.projectFile.findFirst({
+            where: {
+                projectId: input.projectId,
+                OR: [
+                    { path: input.path },
+                    { path: `/${input.path}` },
+                    { path: `./${input.path}` },
+                ],
+            },
+        });
+
+        if (file) {
+            return {
+                path: file.path,
+                content: file.content,
+                source: "file",
+            };
+        }
+
+        // 2. Check sourceCodeEmbedding
+        const embedding = await ctx.db.sourceCodeEmbedding.findFirst({
+            where: {
+                projectId: input.projectId,
+                OR: [
+                    { fileName: input.path },
+                    { fileName: `/${input.path}` },
+                    { fileName: `./${input.path}` },
+                ],
+            },
+        });
+
+        if (embedding) {
+            return {
+                path: embedding.fileName,
+                content: embedding.sourceCode,
+                summary: embedding.summary,
+                source: "embedding",
+            };
+        }
+
+        return {
+            path: input.path,
+            content: "// File content not currently cached. Ingest repository to inspect full source.",
+            source: "placeholder",
+        };
+    }),
+
+    getLatestCommitSummary: protectedProcedure.input(z.object({
+        projectId: z.string(),
+    })).query(async ({ ctx, input }) => {
+        const latestCommit = await ctx.db.commit.findFirst({
+            where: { projectId: input.projectId },
+            orderBy: { commitDate: 'desc' },
+        });
+
+        return latestCommit;
+    }),
+
+    getAllCommitSummaries: protectedProcedure.input(z.object({
+        projectId: z.string(),
+    })).query(async ({ ctx, input }) => {
+        const commits = await ctx.db.commit.findMany({
+            where: { projectId: input.projectId },
+            orderBy: { commitDate: 'desc' },
+        });
+
+        return commits;
+    }),
+
+    syncProjectCommits: protectedProcedure.input(z.object({
+        projectId: z.string(),
+    })).mutation(async ({ input }) => {
+        try {
+            await pollCommits(input.projectId);
+            return { success: true };
+        } catch (error: any) {
+            console.error("Error polling commits in syncProjectCommits:", error);
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: error?.message || 'Failed to sync commits',
+            });
+        }
+    }),
+
+    deleteQuestion: protectedProcedure.input(z.object({
+        questionId: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+        return await ctx.db.question.delete({
+            where: { id: input.questionId },
+        });
+    }),
 });

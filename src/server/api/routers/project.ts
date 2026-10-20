@@ -103,9 +103,10 @@ export const projectRouter = createTRPCRouter({
         });
     }),
     getCommits: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ctx, input}) => {
-        const {projectId} = input;
+        projectId: z.string().optional().default(""),
+    }).optional()).query(async ({ctx, input}) => {
+        const projectId = input?.projectId || "";
+        if (!projectId) return [];
 
         console.log(`polling commits for project ${projectId}`);
 
@@ -145,20 +146,17 @@ export const projectRouter = createTRPCRouter({
 // Replace the getQuestions procedure with this improved version:
 
 getQuestions: protectedProcedure.input(z.object({
-    projectId: z.string(),
-})).query(async ({ctx, input}) => {
+    projectId: z.string().optional().default(""),
+}).optional()).query(async ({ctx, input}) => {
     try {
-        // Validate projectId
-        if (!input.projectId) {
-            throw new TRPCError({
-                code: 'BAD_REQUEST',
-                message: 'Project ID is required'
-            });
+        const projectId = input?.projectId || "";
+        if (!projectId) {
+            return [];
         }
 
         // Check if project exists
         const project = await ctx.db.project.findUnique({
-            where: { id: input.projectId },
+            where: { id: projectId },
             select: { id: true }
         });
 
@@ -171,7 +169,7 @@ getQuestions: protectedProcedure.input(z.object({
 
         // Fetch questions
         const questions = await ctx.db.question.findMany({
-            where: { projectId: input.projectId },
+            where: { projectId },
             include: {
                 user: {
                     select: {
@@ -293,12 +291,20 @@ getQuestions: protectedProcedure.input(z.object({
     }),
 
     getProjectStats: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ ctx, input }) => {
+        projectId: z.string().optional().default(""),
+    }).optional()).query(async ({ ctx, input }) => {
+        const projectId = input?.projectId || "";
+        if (!projectId) {
+            return {
+                embeddingsCount: 0,
+                commitsCount: 0,
+                questionsCount: 0,
+            };
+        }
         const [embeddingsCount, commitsCount, questionsCount] = await Promise.all([
-            ctx.db.sourceCodeEmbedding.count({ where: { projectId: input.projectId } }),
-            ctx.db.commit.count({ where: { projectId: input.projectId } }),
-            ctx.db.question.count({ where: { projectId: input.projectId } }),
+            ctx.db.sourceCodeEmbedding.count({ where: { projectId } }),
+            ctx.db.commit.count({ where: { projectId } }),
+            ctx.db.question.count({ where: { projectId } }),
         ]);
         return {
             embeddingsCount,
@@ -309,11 +315,18 @@ getQuestions: protectedProcedure.input(z.object({
 
     // --- Architecture & Repository Structure ---
     getProjectStructure: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ ctx, input }) => {
+        projectId: z.string().optional().default(""),
+    }).optional()).query(async ({ ctx, input }) => {
+        const projectId = input?.projectId || "";
+        if (!projectId) {
+            return {
+                tree: [],
+                totalFiles: 0,
+            };
+        }
         // 1. Fetch paths from projectFile
         const files = await ctx.db.projectFile.findMany({
-            where: { projectId: input.projectId },
+            where: { projectId },
             select: { path: true },
             orderBy: { path: 'asc' },
         });
@@ -323,7 +336,7 @@ getQuestions: protectedProcedure.input(z.object({
         // 2. Fallback to SourceCodeEmbedding if projectFile is not yet populated
         if (filePaths.length === 0) {
             const embeddings = await ctx.db.sourceCodeEmbedding.findMany({
-                where: { projectId: input.projectId },
+                where: { projectId },
                 select: { fileName: true },
                 distinct: ['fileName'],
                 orderBy: { fileName: 'asc' },
@@ -462,10 +475,12 @@ getQuestions: protectedProcedure.input(z.object({
     }),
 
     getLatestCommitSummary: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ ctx, input }) => {
+        projectId: z.string().optional().default(""),
+    }).optional()).query(async ({ ctx, input }) => {
+        const projectId = input?.projectId || "";
+        if (!projectId) return null;
         const latestCommit = await ctx.db.commit.findFirst({
-            where: { projectId: input.projectId },
+            where: { projectId },
             orderBy: { commitDate: 'desc' },
         });
 
@@ -473,10 +488,12 @@ getQuestions: protectedProcedure.input(z.object({
     }),
 
     getAllCommitSummaries: protectedProcedure.input(z.object({
-        projectId: z.string(),
-    })).query(async ({ ctx, input }) => {
+        projectId: z.string().optional().default(""),
+    }).optional()).query(async ({ ctx, input }) => {
+        const projectId = input?.projectId || "";
+        if (!projectId) return [];
         const commits = await ctx.db.commit.findMany({
-            where: { projectId: input.projectId },
+            where: { projectId },
             orderBy: { commitDate: 'desc' },
         });
 

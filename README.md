@@ -101,7 +101,7 @@ flowchart TD
 
 ### 6. 💳 Usage & Billing (`/billing`)
 - Transparent credit-based usage tracking.
-- Test-mode payments powered by Razorpay and Stripe transaction logging.
+- Test-mode payments powered by Razorpay with transaction logging.
 
 ### 7. 🔐 Authentication & Session Security
 - Powered by **Better Auth** with Email/Password, GitHub OAuth, and Password Reset recovery flows.
@@ -138,7 +138,7 @@ Repomind/
 │   │   │   ├── qa/                # Ask & Explore + Repository Architecture Tree
 │   │   │   ├── commit-summaries/  # Automated commit diff summarization
 │   │   │   ├── knowledge-base/    # Persistent Q&A repository knowledge
-│   │   │   ├── billing/           # Credit management & Razorpay/Stripe billing
+│   │   │   ├── billing/           # Credit management & Razorpay billing
 │   │   │   └── create/            # Repository ingestion page
 │   │   ├── forgot-password/       # Password reset request flow
 │   │   ├── reset-password/        # Secure token password update

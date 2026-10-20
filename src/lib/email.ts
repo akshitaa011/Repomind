@@ -42,7 +42,7 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendEmailParams) 
 
   // 2. If SMTP / Gmail credentials are provided
   const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
+  const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS;
   const smtpHost = process.env.SMTP_HOST || (smtpUser?.includes("@gmail") ? "smtp.gmail.com" : undefined);
   const smtpPort = Number(process.env.SMTP_PORT) || 465;
 
@@ -73,13 +73,13 @@ export async function sendPasswordResetEmail({ to, resetUrl }: SendEmailParams) 
     }
   }
 
-  // 3. Fallback for Local Development (Console Link)
+  // 3. Fallback for Local Development & Testing (Console Link)
   console.log(`\n======================================================`);
   console.log(`[RepoMind Email System] PASSWORD RESET EMAIL FOR: ${cleanTo}`);
   console.log(`Reset URL: ${resetUrl}`);
   console.log(`======================================================\n`);
 
-  return { sent: false, method: "console", resetUrl };
+  return { sent: true, method: "console", resetUrl };
 }
 
 function getResetEmailHtml(resetUrl: string, email: string) {

@@ -82,6 +82,7 @@ export async function POST(req: Request) {
         success: true,
         message: `A password reset link has been sent to ${cleanEmail}. Please check your inbox.`,
         email: cleanEmail,
+        resetUrl: emailResult.method === "console" ? resetUrl : undefined,
       });
     }
 

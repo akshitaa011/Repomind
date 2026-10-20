@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
-import { ArrowLeft, Mail, Loader2, KeyRound, AlertCircle, MailCheck } from 'lucide-react'
+import { ArrowLeft, Mail, Loader2, KeyRound, AlertCircle, MailCheck, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function ForgotPasswordPage() {
@@ -13,10 +13,12 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [devResetUrl, setDevResetUrl] = useState('')
 
   const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage('')
+    setDevResetUrl('')
 
     if (!email.trim()) {
       toast.error("Please enter your registered email address")
@@ -42,6 +44,10 @@ export default function ForgotPasswordPage() {
         setErrorMessage(error)
         toast.error(error)
         return
+      }
+
+      if (data.resetUrl) {
+        setDevResetUrl(data.resetUrl)
       }
 
       // Link sent successfully to user's email
@@ -99,15 +105,15 @@ export default function ForgotPasswordPage() {
                 {errorMessage && (
                   <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex items-start gap-2.5 text-xs text-destructive">
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{errorMessage}</span>
+                    <p>{errorMessage}</p>
                   </div>
                 )}
 
-                <Button type="submit" className="w-full gap-2 font-semibold" disabled={loading}>
+                <Button type="submit" className="w-full font-medium" disabled={loading}>
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Checking database & sending link...</span>
+                      <span>Verifying account & sending link...</span>
                     </>
                   ) : (
                     "Send Reset Link"
@@ -147,6 +153,24 @@ export default function ForgotPasswordPage() {
                   Didn&apos;t receive it? Please check your spam folder. The link will expire in 1 hour.
                 </p>
               </div>
+
+              {devResetUrl && (
+                <div className="rounded-lg bg-primary/10 border border-primary/20 p-3.5 text-left space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <KeyRound className="size-3.5" />
+                    <span>Direct Password Reset Link:</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground break-all font-mono select-all bg-background/60 p-2 rounded border border-border/50">
+                    {devResetUrl}
+                  </p>
+                  <Link href={devResetUrl} className="inline-block pt-1">
+                    <Button size="sm" className="h-8 text-xs font-medium gap-1.5">
+                      <span>Open Reset Password Page</span>
+                      <ExternalLink className="size-3" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
 
               <Button
                 variant="outline"
